@@ -174,11 +174,11 @@ int main(int argc, char *argv[])
                                                                                 intervalo[0]);
     r2 = ioctl(fd, BLKZEROOUT, &intervalo);
 
-    // não garante setores zerados
+    // TRIM não garante setores zerados
     // sem efeito em HDDs
     intervalo[0] = 0;
     intervalo[1] = ULLONG_MAX;
-    ioctl(fd, BLKZEROOUT, &intervalo);
+    ioctl(fd, BLKDISCARD, &intervalo);
 
     ioctl(fd, BLKRRPART);
 
