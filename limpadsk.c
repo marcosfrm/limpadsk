@@ -10,6 +10,7 @@
 #include <sys/file.h>
 #include <sys/stat.h>
 #include <sys/types.h>
+#include <sys/utsname.h>
 #include <errno.h>
 #include <inttypes.h>
 #include <limits.h>
@@ -20,10 +21,11 @@
 
 int main(int argc, char *argv[])
 {
-    int fd, i, n, setor_sz, r1, r2;
+    int fd, i, n, setor_sz, r;
     int num_setores = 10 * 2048;
     uint64_t dev_sz, intervalo[2];
     struct stat sb;
+    struct utsname uts;
     struct {
         int indice;
         blkid_loff_t inicio;
@@ -140,49 +142,58 @@ int main(int argc, char *argv[])
     }
     // -----------------------------------------------------
 
-    if (ioctl(fd, BLKSSZGET, &setor_sz))
+    // https://github.com/torvalds/linux/commit/66ba32dc167202c3cf8c86806581a9393ec7f488
+    r = uname(&uts);
+    if (!r && strverscmp(uts.release, "3.7") > 0)
     {
-        perror("ioctl BLKSSZGET");
-        close(fd);
-        exit(EXIT_FAILURE);
-    }
+        if (ioctl(fd, BLKSSZGET, &setor_sz))
+        {
+            perror("ioctl BLKSSZGET");
+            close(fd);
+            exit(EXIT_FAILURE);
+        }
 
-    if (ioctl(fd, BLKGETSIZE64, &dev_sz))
+        if (ioctl(fd, BLKGETSIZE64, &dev_sz))
+        {
+            perror("ioctl BLKGETSIZE64");
+            close(fd);
+            exit(EXIT_FAILURE);
+        }
+
+        // < 20  MiB (setores de 512 bytes)
+        // < 160 MiB (setores de 4 KiB)
+        if (dev_sz < (2 * num_setores * setor_sz))
+        {
+            num_setores = 2048;
+        }
+
+        intervalo[0] = 0;
+        intervalo[1] = num_setores * setor_sz;
+
+        printf("Zerando %" PRIu64 " bytes no inicio do dispositivo\n", intervalo[1]);
+        ioctl(fd, BLKZEROOUT, &intervalo);
+
+        intervalo[0] = dev_sz - intervalo[1];
+
+        printf("Zerando %" PRIu64 " bytes no fim do dispositivo (offset %" PRIu64 " bytes)\n",
+                                                                                    intervalo[1],
+                                                                                    intervalo[0]);
+        ioctl(fd, BLKZEROOUT, &intervalo);
+
+        // TRIM não garante setores zerados
+        // sem efeito em HDDs
+        intervalo[0] = 0;
+        intervalo[1] = ULLONG_MAX;
+        ioctl(fd, BLKDISCARD, &intervalo);
+    }
+    else
     {
-        perror("ioctl BLKGETSIZE64");
-        close(fd);
-        exit(EXIT_FAILURE);
+        fprintf(stderr, "Linux < 3.7, dispositivo nao sera zerado\n");
     }
-
-    // < 20  MiB (setores de 512 bytes)
-    // < 160 MiB (setores de 4 KiB)
-    if (dev_sz < (2 * num_setores * setor_sz))
-    {
-        num_setores = 2048;
-    }
-
-    intervalo[0] = 0;
-    intervalo[1] = num_setores * setor_sz;
-
-    printf("Zerando %" PRIu64 " bytes no inicio do dispositivo\n", intervalo[1]);
-    r1 = ioctl(fd, BLKZEROOUT, &intervalo);
-
-    intervalo[0] = dev_sz - intervalo[1];
-
-    printf("Zerando %" PRIu64 " bytes no fim do dispositivo (offset %" PRIu64 " bytes)\n",
-                                                                                intervalo[1],
-                                                                                intervalo[0]);
-    r2 = ioctl(fd, BLKZEROOUT, &intervalo);
-
-    // TRIM não garante setores zerados
-    // sem efeito em HDDs
-    intervalo[0] = 0;
-    intervalo[1] = ULLONG_MAX;
-    ioctl(fd, BLKDISCARD, &intervalo);
 
     ioctl(fd, BLKRRPART);
 
     close(fd);
 
-    return (r1 || r2);
+    return EXIT_SUCCESS;
 }
