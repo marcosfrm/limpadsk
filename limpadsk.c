@@ -18,6 +18,12 @@
 #include <string.h>
 #include <unistd.h>
 
+// Linux < 2.6.28
+// https://github.com/torvalds/linux/commit/d30a2605be9d5132d95944916e8f578fcfe4f976
+#ifndef BLKDISCARD
+#define BLKDISCARD _IO(0x12,119)
+#endif
+
 int zera_setores(int fd, off_t inicio, size_t num_setores, int setor_sz)
 {
     uint8_t *buffer;
@@ -46,8 +52,8 @@ int zera_setores(int fd, off_t inicio, size_t num_setores, int setor_sz)
             }
         }
 
-        free(buffer);
         fsync(fd);
+        free(buffer);
     }
     else
     {
@@ -179,7 +185,6 @@ int main(int argc, char *argv[])
         fprintf(stderr, "Falha ao inicializar libblkid, assinaturas nao serao removidas\n");
     }
     // -----------------------------------------------------
-
 
     if (ioctl(fd, BLKSSZGET, &setor_sz))
     {
