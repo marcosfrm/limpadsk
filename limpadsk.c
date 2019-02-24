@@ -10,7 +10,6 @@
 #include <sys/file.h>
 #include <sys/stat.h>
 #include <sys/types.h>
-#include <sys/utsname.h>
 #include <errno.h>
 #include <inttypes.h>
 #include <limits.h>
@@ -19,13 +18,52 @@
 #include <string.h>
 #include <unistd.h>
 
+int zera_setores(int fd, off_t inicio, size_t num_setores, int setor_sz)
+{
+    uint8_t *buffer;
+    ssize_t temp;
+
+    if (lseek(fd, inicio, SEEK_SET) >= 0)
+    {
+        buffer = calloc(sizeof(uint8_t), (size_t)setor_sz);
+        if (!buffer)
+        {
+            return EXIT_FAILURE;
+        }
+
+        while (num_setores)
+        {
+            temp = write(fd, buffer, (size_t)setor_sz);
+            // escritas parciais são OK
+            if (temp > 0)
+            {
+                num_setores--;
+            }
+            else if (temp < 0)
+            {
+                free(buffer);
+                return EXIT_FAILURE;
+            }
+        }
+
+        free(buffer);
+        fsync(fd);
+    }
+    else
+    {
+        return EXIT_FAILURE;
+    }
+
+    return EXIT_SUCCESS;
+}
+
 int main(int argc, char *argv[])
 {
-    int fd, i, n, setor_sz, r;
-    int num_setores = 10 * 2048;
-    uint64_t dev_sz, intervalo[2];
+    int fd, i, n, setor_sz, r1, r2;
+    size_t num_setores = 10 * 2048;
+    uint64_t dev_sz, trim[2];
+    off_t offset_fim;
     struct stat sb;
-    struct utsname uts;
     struct {
         int indice;
         blkid_loff_t inicio;
@@ -142,59 +180,48 @@ int main(int argc, char *argv[])
     }
     // -----------------------------------------------------
 
-    // https://github.com/torvalds/linux/commit/66ba32dc167202c3cf8c86806581a9393ec7f488
-    r = uname(&uts);
-    if (!r && strverscmp(uts.release, "3.7") > 0)
+
+    if (ioctl(fd, BLKSSZGET, &setor_sz))
     {
-        if (ioctl(fd, BLKSSZGET, &setor_sz))
-        {
-            perror("ioctl BLKSSZGET");
-            close(fd);
-            exit(EXIT_FAILURE);
-        }
-
-        if (ioctl(fd, BLKGETSIZE64, &dev_sz))
-        {
-            perror("ioctl BLKGETSIZE64");
-            close(fd);
-            exit(EXIT_FAILURE);
-        }
-
-        // < 20  MiB (setores de 512 bytes)
-        // < 160 MiB (setores de 4 KiB)
-        if (dev_sz < (2 * num_setores * setor_sz))
-        {
-            num_setores = 2048;
-        }
-
-        intervalo[0] = 0;
-        intervalo[1] = num_setores * setor_sz;
-
-        printf("Zerando %" PRIu64 " bytes no inicio do dispositivo\n", intervalo[1]);
-
-        ioctl(fd, BLKZEROOUT, &intervalo);
-
-        intervalo[0] = dev_sz - intervalo[1];
-
-        printf("Zerando %" PRIu64 " bytes no fim do dispositivo (offset %" PRIu64 " bytes)\n",
-               intervalo[1], intervalo[0]);
-
-        ioctl(fd, BLKZEROOUT, &intervalo);
-
-        // TRIM não garante setores zerados
-        // sem efeito em HDDs
-        intervalo[0] = 0;
-        intervalo[1] = ULLONG_MAX;
-        ioctl(fd, BLKDISCARD, &intervalo);
+        perror("ioctl BLKSSZGET");
+        close(fd);
+        exit(EXIT_FAILURE);
     }
-    else
+
+    if (ioctl(fd, BLKGETSIZE64, &dev_sz))
     {
-        fprintf(stderr, "Linux < 3.7, dispositivo nao sera zerado\n");
+        perror("ioctl BLKGETSIZE64");
+        close(fd);
+        exit(EXIT_FAILURE);
     }
+
+    // < 20  MiB (setores de 512 bytes)
+    // < 160 MiB (setores de 4 KiB)
+    if (dev_sz < (2 * num_setores * setor_sz))
+    {
+        num_setores = 2048;
+    }
+
+    printf("Zerando %" PRId64 " bytes no inicio do dispositivo\n", num_setores * setor_sz);
+
+    r1 = zera_setores(fd, 0, num_setores, setor_sz);
+
+    offset_fim = dev_sz - (num_setores * setor_sz);
+
+    printf("Zerando %" PRId64 " bytes no fim do dispositivo (offset %" PRId64 " bytes)\n",
+           num_setores * setor_sz, offset_fim);
+
+    r2 = zera_setores(fd, offset_fim, num_setores, setor_sz);
+
+    // TRIM não garante setores zerados
+    // sem efeito em HDDs
+    trim[0] = 0;
+    trim[1] = ULLONG_MAX;
+    ioctl(fd, BLKDISCARD, &trim);
 
     ioctl(fd, BLKRRPART);
 
     close(fd);
 
-    return EXIT_SUCCESS;
+    return (r1 || r2);
 }
