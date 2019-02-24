@@ -124,8 +124,8 @@ int main(int argc, char *argv[])
                 if (blkid_probe_set_device(pr, fd, particoes[i].inicio, particoes[i].tamanho) == 0)
                 {
                     printf("Apagando assinatura(s) da particao %d (%" PRId64 " bytes)\n",
-                                                                                particoes[i].indice,
-                                                                                particoes[i].tamanho);
+                           particoes[i].indice, particoes[i].tamanho);
+
                     while (blkid_do_probe(pr) == 0)
                     {
                         blkid_do_wipe(pr, 0);
@@ -171,13 +171,14 @@ int main(int argc, char *argv[])
         intervalo[1] = num_setores * setor_sz;
 
         printf("Zerando %" PRIu64 " bytes no inicio do dispositivo\n", intervalo[1]);
+
         ioctl(fd, BLKZEROOUT, &intervalo);
 
         intervalo[0] = dev_sz - intervalo[1];
 
         printf("Zerando %" PRIu64 " bytes no fim do dispositivo (offset %" PRIu64 " bytes)\n",
-                                                                                    intervalo[1],
-                                                                                    intervalo[0]);
+               intervalo[1], intervalo[0]);
+
         ioctl(fd, BLKZEROOUT, &intervalo);
 
         // TRIM não garante setores zerados
