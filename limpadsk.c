@@ -31,16 +31,16 @@ int zera_setores(int fd, off_t inicio, size_t num_setores, int setor_sz)
 
     if (lseek(fd, inicio, SEEK_SET) >= 0)
     {
-        buffer = calloc(sizeof(uint8_t), (size_t)setor_sz);
+        buffer = calloc((size_t)setor_sz, sizeof(uint8_t));
         if (!buffer)
         {
-            return EXIT_FAILURE;
+            return -1;
         }
 
         while (num_setores)
         {
             temp = write(fd, buffer, (size_t)setor_sz);
-            // escritas parciais são OK
+            // escritas parciais (temp != setor_sz) são OK
             if (temp > 0)
             {
                 num_setores--;
@@ -48,7 +48,7 @@ int zera_setores(int fd, off_t inicio, size_t num_setores, int setor_sz)
             else if (temp < 0)
             {
                 free(buffer);
-                return EXIT_FAILURE;
+                return -1;
             }
         }
 
@@ -57,10 +57,10 @@ int zera_setores(int fd, off_t inicio, size_t num_setores, int setor_sz)
     }
     else
     {
-        return EXIT_FAILURE;
+        return -1;
     }
 
-    return EXIT_SUCCESS;
+    return 0;
 }
 
 int main(int argc, char *argv[])
@@ -218,8 +218,8 @@ int main(int argc, char *argv[])
 
     r2 = zera_setores(fd, offset_fim, num_setores, setor_sz);
 
-    // TRIM não garante setores zerados
-    // sem efeito em HDDs
+    // - TRIM não garante setores zerados
+    // - sem efeito em HDDs
     trim[0] = 0;
     trim[1] = ULLONG_MAX;
     ioctl(fd, BLKDISCARD, &trim);
