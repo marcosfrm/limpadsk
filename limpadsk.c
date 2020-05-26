@@ -87,7 +87,7 @@ int main(int argc, char *argv[])
         exit(EXIT_FAILURE);
     }
 
-    fd = open(argv[1], O_RDWR);
+    fd = open(argv[1], O_RDWR|O_EXCL);
     if (fd < 0)
     {
         perror("open");
