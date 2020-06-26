@@ -4,7 +4,7 @@
 
 Sempre sanitizo dispositivos de bloco (ex. `/dev/sdx`) antes de restaurar imagens com o [FSArchiver](https://github.com/fdupoux/fsarchiver). `limpadsk` tem esse objetivo e faz o seguinte:
 
-* roda o `wipefs` e apaga assinaturas de:
+* roda o `wipefs` para apagar assinaturas de:
   * sistemas de arquivos de todas as partições
   * do dispositivo (offset 0), geralmente tabela de partições
 * zera os primeiros e últimos 4096 setores, removendo restos de bootloaders
@@ -29,7 +29,8 @@ Debian/Ubuntu:
 
 #### Requerimentos durante a execução
 
-* `wipefs`, programa da suíte [util-linux](https://github.com/karelzak/util-linux). Caso não esteja presente, assinaturas não serão apagadas.
+* kernel >= 3.7: [requisição BLKZEROOUT](https://github.com/torvalds/linux/commit/66ba32dc167202c3cf8c86806581a9393ec7f488) da chamada de sistema `ioctl()`.
+* `wipefs`, programa da suíte [util-linux](https://github.com/karelzak/util-linux): caso não esteja presente, assinaturas não serão apagadas.
 
 #### Compilação
 
