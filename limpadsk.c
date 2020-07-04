@@ -35,7 +35,7 @@ int main(int argc, char *argv[])
     struct stat sb;
     struct utsname ut;
     char *devglob;
-    pid_t pid;
+    pid_t pid, w;
 
     r = uname(&ut);
     if (!r && strverscmp(ut.release, "3.7") < 0)
@@ -104,7 +104,11 @@ int main(int argc, char *argv[])
         exit(EXIT_SUCCESS);
     }
 
-    waitpid(pid, &status, 0);
+    do
+    {
+        w = waitpid(pid, &status, 0);
+    }
+    while (w < 0);
 
     if (ioctl(fd, BLKSSZGET, &setor_sz))
     {
