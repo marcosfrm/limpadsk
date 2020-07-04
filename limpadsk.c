@@ -20,6 +20,14 @@
 #include <string.h>
 #include <unistd.h>
 
+#ifndef BLKDISCARD
+#define BLKDISCARD _IO(0x12,119)
+#endif
+
+#ifndef BLKZEROOUT
+#define BLKZEROOUT _IO(0x12,127)
+#endif
+
 int main(int argc, char *argv[])
 {
     int fd, setor_sz, r, status;
