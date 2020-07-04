@@ -125,16 +125,23 @@ int main(int argc, char *argv[])
     intervalo[0] = 0;
     intervalo[1] = NSETORES * setor_sz;
 
-    printf("Zerando %" PRIu64 " bytes no inicio do dispositivo... ", intervalo[1]);
-    r = ioctl(fd, BLKZEROOUT, &intervalo);
-    printf("%s.\n", r ? "falha" : "sucesso");
+    if (dev_sz >= (2 * intervalo[1]))
+    {
+        printf("Zerando %" PRIu64 " bytes no inicio do dispositivo... ", intervalo[1]);
+        r = ioctl(fd, BLKZEROOUT, &intervalo);
+        printf("%s.\n", r ? "falha" : "sucesso");
 
-    intervalo[0] = dev_sz - intervalo[1];
+        intervalo[0] = dev_sz - intervalo[1];
 
-    printf("Zerando %" PRIu64 " bytes no fim do dispositivo (offset %" PRIu64 " bytes)... ",
-           intervalo[1], intervalo[0]);
-    r = ioctl(fd, BLKZEROOUT, &intervalo);
-    printf("%s.\n", r ? "falha" : "sucesso");
+        printf("Zerando %" PRIu64 " bytes no fim do dispositivo (offset %" PRIu64 " bytes)... ",
+               intervalo[1], intervalo[0]);
+        r = ioctl(fd, BLKZEROOUT, &intervalo);
+        printf("%s.\n", r ? "falha" : "sucesso");
+    }
+    else
+    {
+        fprintf(stderr, "Dispositivo pequeno demais: inicio e fim nao zerados.\n");
+    }
 
     intervalo[0] = 0;
     intervalo[1] = ULLONG_MAX;
