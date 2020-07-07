@@ -38,7 +38,7 @@ int main(int argc, char *argv[])
     pid_t pid, w;
 
     r = uname(&ut);
-    if (!r && strverscmp(ut.release, "3.7") < 0)
+    if (r || strverscmp(ut.release, "3.7") < 0)
     {
         fprintf(stderr, "%s requer kernel >= 3.7\n", argv[0]);
         exit(EXIT_FAILURE);
