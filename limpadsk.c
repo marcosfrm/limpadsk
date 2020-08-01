@@ -14,7 +14,6 @@
 #include <errno.h>
 #include <glob.h>
 #include <inttypes.h>
-#include <limits.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -144,7 +143,7 @@ int main(int argc, char *argv[])
     }
 
     intervalo[0] = 0;
-    intervalo[1] = ULLONG_MAX;
+    intervalo[1] = dev_sz;
 
     printf("TRIMando o dispositivo... ");
     r = ioctl(fd, BLKDISCARD, &intervalo);
