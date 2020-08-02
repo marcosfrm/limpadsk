@@ -96,6 +96,7 @@ int main(int argc, char *argv[])
 
         if (gl.gl_pathc > 0)
         {
+            unsetenv("LOCK_BLOCK_DEVICE");
             execvp("wipefs", gl.gl_pathv);
             fprintf(stderr, "Assinaturas nao apagadas: wipefs nao encontrado no PATH.\n");
         }
