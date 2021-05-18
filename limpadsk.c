@@ -27,14 +27,14 @@
 #define BLKZEROOUT _IO(0x12,127)
 #endif
 
-int main(int argc, char *argv[])
+int main(int argc, char **argv)
 {
     int fd, setor_sz, r, status;
     uint64_t dev_sz, intervalo[2];
     struct stat sb;
     struct utsname ut;
     char *devglob;
-    pid_t pid, w;
+    pid_t pid;
 
     r = uname(&ut);
     if (r || strverscmp(ut.release, "3.7") < 0)
@@ -97,18 +97,22 @@ int main(int argc, char *argv[])
         if (gl.gl_pathc > 0)
         {
             unsetenv("LOCK_BLOCK_DEVICE");
-            execvp("wipefs", gl.gl_pathv);
-            fprintf(stderr, "Assinaturas nao apagadas: wipefs nao encontrado no PATH.\n");
+            execvp(gl.gl_pathv[0], gl.gl_pathv);
+            perror(gl.gl_pathv[0]);
         }
 
-        exit(EXIT_SUCCESS);
+        exit(EXIT_FAILURE);
     }
 
-    do
+    while (waitpid(pid, &status, 0) < 0)
     {
-        w = waitpid(pid, &status, 0);
+        continue;
     }
-    while (w < 0);
+
+    if (!WIFEXITED(status) || WEXITSTATUS(status) != EXIT_SUCCESS)
+    {
+        fprintf(stderr, "Erro ao rodar wipefs: assinaturas possivelmente nao apagadas.\n");
+    }
 
     if (ioctl(fd, BLKSSZGET, &setor_sz))
     {
