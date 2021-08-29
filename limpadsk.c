@@ -132,15 +132,19 @@ int main(int argc, char **argv)
     if (dev_sz >= (2 * intervalo[1]))
     {
         printf("Zerando %" PRIu64 " bytes no inicio do dispositivo... ", intervalo[1]);
+        fflush(stdout);
         r = ioctl(fd, BLKZEROOUT, &intervalo);
         printf("%s.\n", r ? "falha" : "sucesso");
+        fflush(stdout);
 
         intervalo[0] = dev_sz - intervalo[1];
 
         printf("Zerando %" PRIu64 " bytes no fim do dispositivo (offset %" PRIu64 " bytes)... ",
                intervalo[1], intervalo[0]);
+        fflush(stdout);
         r = ioctl(fd, BLKZEROOUT, &intervalo);
         printf("%s.\n", r ? "falha" : "sucesso");
+        fflush(stdout);
     }
     else
     {
@@ -151,8 +155,10 @@ int main(int argc, char **argv)
     intervalo[1] = dev_sz;
 
     printf("TRIMando o dispositivo... ");
+    fflush(stdout);
     r = ioctl(fd, BLKDISCARD, &intervalo);
     printf("%s.\n", r ? "sem suporte" : "sucesso");
+    fflush(stdout);
 
     ioctl(fd, BLKRRPART);
 
