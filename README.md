@@ -38,7 +38,7 @@ Debian/Ubuntu:
 gcc limpadsk.c -o limpadsk
 ```
 
-Em [_releases_](https://github.com/marcosfrm/limpadsk/releases) disponibilizo uma compilação estática.
+Em [_releases_](https://github.com/marcosfrm/limpadsk/releases) disponibilizo uma compilação estática e um [módulo para o SystemRescue](https://www.system-rescue.org/Modules/).
 
 ## Uso
 
