@@ -1,5 +1,5 @@
 #define _FILE_OFFSET_BITS 64
-// asprintf, strverscmp
+// asprintf, basename
 #define _GNU_SOURCE
 // setores a apagar
 #define NSETORES 4096
@@ -9,79 +9,65 @@
 #include <sys/file.h>
 #include <sys/stat.h>
 #include <sys/types.h>
-#include <sys/utsname.h>
 #include <sys/wait.h>
 #include <errno.h>
 #include <glob.h>
 #include <inttypes.h>
+#include <limits.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
 
-#ifndef BLKDISCARD
-#define BLKDISCARD _IO(0x12,119)
-#endif
-
-#ifndef BLKZEROOUT
-#define BLKZEROOUT _IO(0x12,127)
-#endif
-
 int main(int argc, char **argv)
 {
-    int fd, setor_sz, r, status;
+    int fd, setor_sz, status;
+    int r = EXIT_FAILURE;
     uint64_t dev_sz, intervalo[2];
     struct stat sb;
-    struct utsname ut;
-    char *devglob;
+    char *devname, *devglob;
     pid_t pid;
-
-    r = uname(&ut);
-    if (r || strverscmp(ut.release, "3.7") < 0)
-    {
-        fprintf(stderr, "%s requer kernel >= 3.7\n", argv[0]);
-        exit(EXIT_FAILURE);
-    }
 
     if (argc != 2)
     {
-        fprintf(stderr, "uso: %s /dev/dispositivo\n", argv[0]);
+        fprintf(stderr, "uso: %s dispositivo\n", basename(argv[0]));
         exit(EXIT_FAILURE);
     }
 
-    fd = open(argv[1], O_RDWR|O_EXCL);
+    if (stat(argv[1], &sb) != 0 || !S_ISBLK(sb.st_mode))
+    {
+        fprintf(stderr, "Dispositivo inexistente ou não de bloco.\n");
+        exit(EXIT_FAILURE);
+    }
+
+    devname = realpath(argv[1], NULL);
+    if (devname == NULL)
+    {
+        perror("realpath");
+        exit(EXIT_FAILURE);
+    }
+
+    if (asprintf(&devglob, "%s*", devname) < 0)
+    {
+        perror("asprintf");
+        goto fim1;
+    }
+
+    fd = open(devname, O_RDWR|O_EXCL);
     if (fd < 0)
     {
         perror("open");
-        exit(EXIT_FAILURE);
-    }
-
-    if (fstat(fd, &sb) < 0)
-    {
-        perror("fstat");
-        exit(EXIT_FAILURE);
-    }
-
-    if (!S_ISBLK(sb.st_mode))
-    {
-        fprintf(stderr, "'%s' precisa ser dispositivo de bloco\n", argv[1]);
-        exit(EXIT_FAILURE);
+        goto fim2;
     }
 
     // https://systemd.io/BLOCK_DEVICE_LOCKING/
     flock(fd, LOCK_EX);
 
-    if (asprintf(&devglob, "%s%s", argv[1], "*") < 0)
-    {
-        perror("asprintf");
-        exit(EXIT_FAILURE);
-    }
-
     pid = fork();
     if (pid < 0)
     {
         perror("fork");
-        exit(EXIT_FAILURE);
+        goto fim3;
     }
 
     if (pid == 0)
@@ -111,19 +97,19 @@ int main(int argc, char **argv)
 
     if (!WIFEXITED(status) || WEXITSTATUS(status) != EXIT_SUCCESS)
     {
-        fprintf(stderr, "Erro ao rodar wipefs: assinaturas possivelmente nao apagadas.\n");
+        fprintf(stderr, "Erro ao rodar wipefs: assinaturas possivelmente não apagadas.\n");
     }
 
     if (ioctl(fd, BLKSSZGET, &setor_sz))
     {
         perror("ioctl BLKSSZGET");
-        exit(EXIT_FAILURE);
+        goto fim3;
     }
 
     if (ioctl(fd, BLKGETSIZE64, &dev_sz))
     {
         perror("ioctl BLKGETSIZE64");
-        exit(EXIT_FAILURE);
+        goto fim3;
     }
 
     intervalo[0] = 0;
@@ -131,7 +117,7 @@ int main(int argc, char **argv)
 
     if (dev_sz >= (2 * intervalo[1]))
     {
-        printf("Zerando %" PRIu64 " bytes no inicio do dispositivo... ", intervalo[1]);
+        printf("Zerando %" PRIu64 " bytes no início do dispositivo... ", intervalo[1]);
         fflush(stdout);
         r = ioctl(fd, BLKZEROOUT, &intervalo);
         printf("%s.\n", r ? "falha" : "sucesso");
@@ -148,7 +134,7 @@ int main(int argc, char **argv)
     }
     else
     {
-        fprintf(stderr, "Dispositivo pequeno demais: inicio e fim nao zerados.\n");
+        fprintf(stderr, "Dispositivo pequeno demais: início e fim não zerados.\n");
     }
 
     intervalo[0] = 0;
@@ -162,7 +148,13 @@ int main(int argc, char **argv)
 
     ioctl(fd, BLKRRPART);
 
+    r = EXIT_SUCCESS;
+fim3:
     close(fd);
+fim2:
+    free(devglob);
+fim1:
+    free(devname);
 
-    return EXIT_SUCCESS;
+    return r;
 }
