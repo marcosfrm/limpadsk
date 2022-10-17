@@ -10,7 +10,6 @@
 #include <sys/stat.h>
 #include <sys/types.h>
 #include <sys/wait.h>
-#include <errno.h>
 #include <glob.h>
 #include <inttypes.h>
 #include <limits.h>
@@ -30,7 +29,7 @@ int main(int argc, char **argv)
 
     if (argc != 2)
     {
-        fprintf(stderr, "uso: %s dispositivo\n", basename(argv[0]));
+        fprintf(stderr, "Uso: %s dispositivo\n", basename(argv[0]));
         exit(EXIT_FAILURE);
     }
 

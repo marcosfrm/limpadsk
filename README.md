@@ -2,7 +2,7 @@
 
 ## Motivação
 
-Sempre sanitizo dispositivos de bloco (ex. `/dev/sdx` ou `/dev/disk/by-id/*`) antes de restaurar imagens com o [FSArchiver](https://github.com/fdupoux/fsarchiver). `limpadsk` tem esse objetivo e faz o seguinte:
+`limpadsk` faz o seguinte:
 
 * roda o `wipefs` para apagar assinaturas de:
   * sistemas de arquivos de todas as partições
@@ -12,7 +12,7 @@ Sempre sanitizo dispositivos de bloco (ex. `/dev/sdx` ou `/dev/disk/by-id/*`) an
 
 Profilaxia básica que [evita colisões](https://caixaseca.blogspot.com/2016/06/assinaturas.html) quando o dispositivo for novamente particionado e formatado.
 
-Ahh, `limpadsk` é mais completo que `diskpart clean`, graças à invocação do `wipefs`.
+`limpadsk` é mais completo que `diskpart clean`, graças à invocação do `wipefs`.
 
 ## Gerando binário
 
@@ -43,5 +43,7 @@ gcc limpadsk.c -o limpadsk
 ```
 limpadsk dispositivo
 ```
+
+Dispositivo pode ser `/dev/sdx` ou o link equivalente em `/dev/disk/by-id/`.
 
 **ATENÇÃO**: `limpadsk` escreverá zeros em áreas importantes do dispositivo especificado. Para fins práticos, **TODOS** os dados serão perdidos. Esta ferramenta é para ser usada por quem sabe o que está fazendo.
