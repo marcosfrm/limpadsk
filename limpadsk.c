@@ -4,6 +4,7 @@
 // setores a apagar
 #define NSETORES 4096
 
+#include <fcntl.h>
 #include <glob.h>
 #include <inttypes.h>
 #include <limits.h>
@@ -33,12 +34,6 @@ int main(int argc, char **argv)
         exit(EXIT_FAILURE);
     }
 
-    if (stat(argv[1], &sb) != 0 || !S_ISBLK(sb.st_mode))
-    {
-        fprintf(stderr, "Dispositivo inexistente ou não de bloco.\n");
-        exit(EXIT_FAILURE);
-    }
-
     devname = realpath(argv[1], NULL);
     if (devname == NULL)
     {
@@ -46,16 +41,28 @@ int main(int argc, char **argv)
         exit(EXIT_FAILURE);
     }
 
-    if (asprintf(&devglob, "%s*", devname) < 0)
-    {
-        perror("asprintf");
-        goto fim1;
-    }
-
     fd = open(devname, O_RDWR|O_EXCL);
     if (fd < 0)
     {
         perror("open");
+        goto fim1;
+    }
+
+    if (fstat(fd, &sb) != 0)
+    {
+        perror("fstat");
+        goto fim2;
+    }
+
+    if (!S_ISBLK(sb.st_mode))
+    {
+        fprintf(stderr, "Não é dispositivo de bloco.\n");
+        goto fim2;
+    }
+
+    if (asprintf(&devglob, "%s*", devname) < 0)
+    {
+        perror("asprintf");
         goto fim2;
     }
 
@@ -149,9 +156,9 @@ int main(int argc, char **argv)
 
     r = EXIT_SUCCESS;
 fim3:
-    close(fd);
-fim2:
     free(devglob);
+fim2:
+    close(fd);
 fim1:
     free(devname);
 
